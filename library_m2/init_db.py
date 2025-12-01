@@ -1,8 +1,7 @@
 import sqlite3
 import csv
 from pathlib import Path
-
-DB_PATH = "library.db"
+from config import DB_PATH
 
 def create_tables(conn):
     cur = conn.cursor()
