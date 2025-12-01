@@ -22,6 +22,10 @@ class LibraryManagementGUI:
         self.create_checkin_tab()
         self.create_borrower_tab()
         self.create_fines_tab()
+
+        #Create status bar for copies
+        self.status_bar = ttk.Label(root, text="", relief = tk.SUNKEN, anchor = tk.W)
+        self.status_bar.pack(side = tk.BOTTOM, fill = tk.X, padx=10, pady=(0,10))
         
         # Update fines on startup
         try:
@@ -67,7 +71,41 @@ class LibraryManagementGUI:
         
         self.search_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-    
+
+        self.search_tree.bind('<Double-1>', self.copy_selected_isbn)
+
+    def copy_selected_isbn(self,event):
+        """Copies ISBN of selected row"""
+        selected_items = self.search_tree.selection()
+
+        if not selected_items:
+            return
+        
+        item_id = selected_items[0]
+        values = self.search_tree.item(item_id, 'values')
+
+        #Copies value from row
+        if values and len(values) > 0:
+            isbn = values[0]
+
+            try:
+                self.root.clipboard_clear()
+                self.root.clipboard_append(isbn)
+                self.show_status_message(f"ISBN '{isbn}' copied to clipboard.")
+
+            except Exception as e:
+                messagebox.showerror("Clipboard Error", f"Failed to copy ISBN: {e}")
+
+    def show_status_message(self, message, duration_ms = 3000):
+        """Dipslays a mesage in the status bar for a set duration"""
+        self.status_bar.config(text=message)
+
+        #Cancel any previous operation
+        if hasattr(self, '_clear_status_job'):
+            self.root.after_cancel(self._clear_status_job)
+
+        self._clear_status_job = self.root.after(duration_ms, lambda: self.status_bar.config(text=""))
+
     def perform_search(self):
         """Perform book search"""
         search_term = self.search_entry.get().strip()

@@ -57,6 +57,16 @@ def create_borrower(bname, address, phone, ssn):
     if not ssn or not ssn.strip():
         return False, "Error: SSN is required.", None
     
+    cleaned_ssn = ssn.replace('-','').replace(' ','')
+    cleaned_phone = phone.replace('-','').replace(' ','')
+
+    if len(cleaned_ssn.strip()) != 9:
+        return False, "Error: Invalid SSN.", None
+    
+    if len(cleaned_phone.strip()) not in [7,10]:
+        return False, "Error: Invalid phone number", None
+
+
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
