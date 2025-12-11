@@ -3,13 +3,14 @@ from datetime import datetime, timedelta
 import fines
 from config import DB_PATH
 
-def checkout(isbn, card_id):
+def checkout(isbn, card_id, override=False):
     """
     Check out a book for a borrower.
     
     Args:
         isbn (str): ISBN of the book to checkout
         card_id (str): Borrower card ID
+        override (bool): If True, bypass restrictions (fines, max loans, availability)
     
     Returns:
         tuple: (success: bool, message: str)
@@ -34,7 +35,7 @@ def checkout(isbn, card_id):
             return False, f"Error: Book with ISBN '{isbn}' not found."
         
         # Check if borrower has unpaid fines
-        if fines.has_unpaid_fines(card_id):
+        if not override and fines.has_unpaid_fines(card_id):
             conn.close()
             return False, "Error: Borrower has unpaid fines. Cannot checkout books until fines are paid."
         
@@ -45,7 +46,7 @@ def checkout(isbn, card_id):
             WHERE Card_id = ? AND Date_in IS NULL
         """, (card_id,))
         active_loans = cur.fetchone()
-        if active_loans['count'] >= 3:
+        if not override and active_loans['count'] >= 3:
             conn.close()
             return False, f"Error: Borrower already has 3 active loans. Maximum limit reached."
         

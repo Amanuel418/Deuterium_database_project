@@ -5,11 +5,83 @@ import search
 import loans
 import borrowers
 import fines
+from config import DB_PATH
+import sqlite3
+
+class LoginDialog:
+    def __init__(self, parent):
+        self.parent = parent
+        self.result = None
+        
+        self.window = tk.Toplevel(parent)
+        self.window.title("Login")
+        self.window.geometry("300x200")
+        self.window.resizable(False, False)
+        
+        # Center the window
+        self.window.transient(parent)
+        self.window.grab_set()
+        
+        self.create_widgets()
+        
+        # Center on screen
+        self.window.update_idletasks()
+        width = self.window.winfo_width()
+        height = self.window.winfo_height()
+        x = (self.window.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.window.winfo_screenheight() // 2) - (height // 2)
+        self.window.geometry(f'+{x}+{y}')
+        
+        self.window.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.window.wait_window()
+        
+    def create_widgets(self):
+        frame = ttk.Frame(self.window, padding=20)
+        frame.pack(fill=tk.BOTH, expand=True)
+        
+        ttk.Label(frame, text="Username:").pack(anchor=tk.W, pady=(0, 5))
+        self.username_entry = ttk.Entry(frame)
+        self.username_entry.pack(fill=tk.X, pady=(0, 10))
+        self.username_entry.focus_set()
+        
+        ttk.Label(frame, text="Password:").pack(anchor=tk.W, pady=(0, 5))
+        self.password_entry = ttk.Entry(frame, show="*")
+        self.password_entry.pack(fill=tk.X, pady=(0, 20))
+        
+        self.password_entry.bind('<Return>', lambda e: self.login())
+        
+        ttk.Button(frame, text="Login", command=self.login).pack(fill=tk.X)
+        
+    def login(self):
+        username = self.username_entry.get().strip()
+        password = self.password_entry.get().strip()
+        
+        if not username or not password:
+            messagebox.showwarning("Warning", "Please enter username and password.")
+            return
+            
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        cur.execute("SELECT role FROM USERS WHERE username = ? AND password = ?", (username, password))
+        user = cur.fetchone()
+        conn.close()
+        
+        if user:
+            self.result = user['role']
+            self.window.destroy()
+        else:
+            messagebox.showerror("Error", "Invalid username or password.")
+            
+    def on_close(self):
+        self.window.destroy()
 
 class LibraryManagementGUI:
-    def __init__(self, root):
+    def __init__(self, root, user_role):
         self.root = root
-        self.root.title("Library Management System")
+        self.user_role = user_role
+        self.root.title(f"Library Management System - Logged in as: {user_role.upper()}")
         self.root.geometry("1000x700")
         
         # Create notebook for tabs
@@ -153,7 +225,16 @@ class LibraryManagementGUI:
         self.checkout_card_id = ttk.Entry(form_frame, width=30, font=("Arial", 10))
         self.checkout_card_id.grid(row=1, column=1, pady=5, padx=10)
         
-        ttk.Button(form_frame, text="Checkout Book", command=self.perform_checkout).grid(row=2, column=0, columnspan=2, pady=20)
+        ttk.Button(form_frame, text="Checkout Book", command=self.perform_checkout).grid(row=3, column=0, columnspan=2, pady=10)
+        
+        # Super-User Override
+        self.override_var = tk.BooleanVar()
+        self.override_check = ttk.Checkbutton(form_frame, text="Super-User Override (Ignore Restrictions)", variable=self.override_var)
+        self.override_check.grid(row=2, column=0, columnspan=2, pady=5)
+        
+        # Hide override for non-librarians
+        if self.user_role != 'librarian':
+            self.override_check.grid_remove()
         
         # Status display
         status_frame = ttk.LabelFrame(checkout_frame, text="Status", padding=10)
@@ -172,7 +253,8 @@ class LibraryManagementGUI:
             return
         
         try:
-            success, message = loans.checkout(isbn, card_id)
+            override = self.override_var.get()
+            success, message = loans.checkout(isbn, card_id, override)
             self.checkout_status.insert(tk.END, f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
             self.checkout_status.see(tk.END)
             
@@ -330,7 +412,6 @@ class LibraryManagementGUI:
         ttk.Label(form_frame, text="SSN:", font=("Arial", 10)).grid(row=3, column=0, sticky=tk.W, pady=5)
         self.borrower_ssn = ttk.Entry(form_frame, width=40, font=("Arial", 10))
         self.borrower_ssn.grid(row=3, column=1, pady=5, padx=10, sticky=tk.W+tk.E)
-        
         form_frame.columnconfigure(1, weight=1)
         
         ttk.Button(form_frame, text="Create Borrower", command=self.create_borrower).grid(row=4, column=0, columnspan=2, pady=20)
@@ -549,8 +630,17 @@ class LibraryManagementGUI:
 
 def main():
     root = tk.Tk()
-    app = LibraryManagementGUI(root)
-    root.mainloop()
+    root.withdraw() # Hide the main window initially
+    
+    # Show login dialog
+    login = LoginDialog(root)
+    
+    if login.result:
+        root.deiconify() # Show main window if login successful
+        app = LibraryManagementGUI(root, login.result)
+        root.mainloop()
+    else:
+        root.destroy()
 
 
 if __name__ == "__main__":
