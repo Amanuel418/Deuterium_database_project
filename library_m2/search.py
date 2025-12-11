@@ -60,20 +60,26 @@ def search(search_term):
         
         # Check if book is currently checked out (Date_in is NULL)
         availability_query = """
-        SELECT COUNT(*) as count
+        SELECT Card_id
         FROM BOOK_LOANS
         WHERE Isbn = ? AND Date_in IS NULL
         """
         cur.execute(availability_query, (isbn,))
-        availability = cur.fetchone()
+        loan_info = cur.fetchone()
         
-        status = "OUT" if availability['count'] > 0 else "IN"
+        if loan_info:
+            status = "OUT"
+            borrower_id = loan_info['Card_id']
+        else:
+            status = "IN"
+            borrower_id = "NULL"
         
         search_results.append({
             'ISBN': isbn,
             'Title': title,
             'Authors': authors,
-            'Status': status
+            'Status': status,
+            'Borrower_id': borrower_id
         })
     
     conn.close()

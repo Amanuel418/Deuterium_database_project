@@ -126,17 +126,18 @@ class LibraryManagementGUI:
         results_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         # Treeview for results
-        columns = ("ISBN", "Title", "Authors", "Status")
+        columns = ("ISBN", "Title", "Authors", "Status", "Borrower ID")
         self.search_tree = ttk.Treeview(results_frame, columns=columns, show="headings", height=20)
         
         for col in columns:
             self.search_tree.heading(col, text=col)
             self.search_tree.column(col, width=200)
         
-        self.search_tree.column("ISBN", width=150)
-        self.search_tree.column("Title", width=300)
-        self.search_tree.column("Authors", width=300)
-        self.search_tree.column("Status", width=100)
+        self.search_tree.column("ISBN", width=120)
+        self.search_tree.column("Title", width=250)
+        self.search_tree.column("Authors", width=250)
+        self.search_tree.column("Status", width=80)
+        self.search_tree.column("Borrower ID", width=100)
         
         scrollbar = ttk.Scrollbar(results_frame, orient=tk.VERTICAL, command=self.search_tree.yview)
         self.search_tree.configure(yscrollcommand=scrollbar.set)
@@ -200,7 +201,8 @@ class LibraryManagementGUI:
                     result['ISBN'],
                     result['Title'],
                     result['Authors'],
-                    result['Status']
+                    result['Status'],
+                    result['Borrower_id']
                 ))
         except Exception as e:
             import traceback
@@ -463,7 +465,13 @@ class LibraryManagementGUI:
         control_frame.pack(fill=tk.X, padx=10, pady=10)
         
         ttk.Button(control_frame, text="Update Fines", command=self.update_fines).pack(side=tk.LEFT, padx=5)
-        ttk.Button(control_frame, text="Refresh Display", command=self.refresh_fines_display).pack(side=tk.LEFT, padx=5)
+        
+        # Search filter
+        ttk.Label(control_frame, text="Search (Card ID/Name):", font=("Arial", 10)).pack(side=tk.LEFT, padx=5)
+        self.fines_search_entry = ttk.Entry(control_frame, width=20, font=("Arial", 10))
+        self.fines_search_entry.pack(side=tk.LEFT, padx=5)
+        self.fines_search_entry.bind('<Return>', lambda e: self.refresh_fines_display())
+        ttk.Button(control_frame, text="Search", command=self.refresh_fines_display).pack(side=tk.LEFT, padx=5)
         
         # Filter option
         filter_frame = ttk.Frame(control_frame)
@@ -535,12 +543,20 @@ class LibraryManagementGUI:
         
         try:
             include_paid = (self.fines_filter.get() == "all")
+            search_term = self.fines_search_entry.get().strip().lower()
+            
             borrowers_data = fines.get_fines_by_borrower(include_paid)
             
             if not borrowers_data:
                 return
             
             for card_id, borrower_data in borrowers_data.items():
+                # Filter by search term
+                if search_term:
+                    if (search_term not in card_id.lower() and 
+                        search_term not in borrower_data['Bname'].lower()):
+                        continue
+                
                 total_fine = f"${borrower_data['total_fine']:.2f}"
                 self.fines_tree.insert("", tk.END, values=(
                     borrower_data['Card_id'],
