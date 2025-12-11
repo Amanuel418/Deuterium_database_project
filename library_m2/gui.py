@@ -34,6 +34,7 @@ class LoginDialog:
         
         self.window.protocol("WM_DELETE_WINDOW", self.on_close)
         self.window.wait_window()
+
         
     def create_widgets(self):
         frame = ttk.Frame(self.window, padding=20)
@@ -646,7 +647,7 @@ class LibraryManagementGUI:
 
 def main():
     root = tk.Tk()
-    root.withdraw() # Hide the main window initially
+    #root.withdraw() # Hide the main window initially
     
     # Show login dialog
     login = LoginDialog(root)
